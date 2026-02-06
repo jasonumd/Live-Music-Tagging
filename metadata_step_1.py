@@ -27,7 +27,7 @@ class MetadataUpdater:
     MICROPHONE_TYPES = [
         "nak", "sony", "schoeps", "mk41", "mk4", "km84i", "km184", "km140",
         "ccm", "cmc", "akg", "senn", "mg", "m210", "m201", "at4053", "re20",
-        "cemc", "ck41", "bk4011", "rsm191"
+        "cemc", "ck41", "bk4011", "rsm191", "beyer", "m88"
     ]
     
     # Iconic names (add more if you desire)
@@ -223,7 +223,7 @@ class MetadataUpdater:
             SELECT events.event_no
             FROM acts
             INNER JOIN events ON acts.ID = events.act_id
-            WHERE acts.name = ? AND events.year = ? 
+            WHERE acts.name_search = ? AND events.year = ? 
                 AND events.month = ? AND events.day = ?;
         """
         
@@ -251,7 +251,8 @@ class MetadataUpdater:
             List of rows containing show data
         """
         sql = """
-            SELECT events.Year, events.Month, events.Day, 
+            SELECT acts.name,
+                   events.Year, events.Month, events.Day,
                    venues.venue1, venues.venue2, venues.venue3, venues.venue4, venues.venue5,
                    event_sets."set", songs.song, event_songs.segue
             FROM venues
@@ -263,11 +264,11 @@ class MetadataUpdater:
                     ON events.ID = event_sets.event_id)
                 ON songs.ID = event_songs.song_id)
             ON venues.ID = events.venue_id
-            WHERE events.Year = ? AND events.Month = ? AND events.Day = ? 
-                AND acts.name = ? AND events.event_no = ?
+            WHERE events.Year = ? AND events.Month = ? AND events.Day = ?
+                AND acts.name_search = ? AND events.event_no = ?
             ORDER BY event_sets.seq, event_songs.seq, events.event_no;
         """
-        
+        print(artist + " " + str(year) + " " + str(month) + " " + str(day) + " " + str(event_no))
         self.cursor.execute(sql, (year, month, day, artist, event_no))
         return self.cursor.fetchall()
     
@@ -280,7 +281,7 @@ class MetadataUpdater:
         Returns:
             Formatted location string
         """
-        location_parts = [venue_parts[i] for i in range(5) if venue_parts[i]]
+        location_parts = [str(part) for part in venue_parts[:5] if part]
         return ", ".join(location_parts)
     
     def build_album_name(self, year: int, month: int, day: int, version: str, shnid: int, name: str, location: str) -> str:
@@ -325,12 +326,13 @@ class MetadataUpdater:
             audio.raw["discnumber"] = None
             audio.save()
     
-    def create_setlists(self, folder_path: Path, show_data: list):
+    def create_setlists(self, folder_path: Path, show_data: list, flac_count: int):
         """Create setlist files from show data.
         
         Args:
             folder_path: Path to folder where setlists will be created
             show_data: List of rows containing set and song information
+            flac_count: Number of FLAC files in the folder
         """
         set_setlist_path = folder_path / "set_setlist.txt"
         setlist_path = folder_path / "setlist.txt"
@@ -341,24 +343,35 @@ class MetadataUpdater:
                 path.unlink()
         
         current_set = ""
+        set_lines = []
+        regular_lines = []
         
-        with open(set_setlist_path, 'w') as set_file, open(setlist_path, 'w') as regular_file:
-            for row in show_data:
-                set_number = row[8]
-                song_title = row[9]
-                is_segue = row[10] == 1
-                
-                # Add segue indicator
-                if is_segue:
-                    song_title += " >"
-                
-                # Write set header if changed
-                if current_set != set_number:
-                    current_set = set_number
-                    set_file.write(f"{set_number}\n")
-                
-                set_file.write(f"{song_title}\n")
-                regular_file.write(f"{song_title}\n")
+        # Add file count as first line in setlist.txt
+        regular_lines.append(str(flac_count))
+        
+        for row in show_data:
+            set_number = row[9]
+            song_title = row[10]
+            is_segue = row[11] == 1
+            
+            # Add segue indicator
+            if is_segue:
+                song_title += " >"
+            
+            # Add set header if changed
+            if current_set != set_number:
+                current_set = set_number
+                set_lines.append(set_number)
+            
+            set_lines.append(song_title)
+            regular_lines.append(song_title)
+        
+        # Write files without trailing newline
+        with open(set_setlist_path, 'w') as set_file:
+            set_file.write('\n'.join(set_lines))
+        
+        with open(setlist_path, 'w') as regular_file:
+            regular_file.write('\n'.join(regular_lines))
     
     def process_folder(self, folder_path: Path, artist: str, genre: str):
         """Process a single folder and update metadata.
@@ -373,6 +386,7 @@ class MetadataUpdater:
         # Extract date
         date_parts = self.extract_date(folder_name)
         if not date_parts:
+            print(here)
             self.log('date_not_found', folder_name)
             return
         
@@ -424,7 +438,7 @@ class MetadataUpdater:
         self.update_file_metadata(flac_files, artist, album, genre, year)
         
         # Create setlists
-        self.create_setlists(folder_path, show_data)
+        self.create_setlists(folder_path, show_data, len(flac_files))
     
     
     def display_log_summary(self):
@@ -453,6 +467,8 @@ class MetadataUpdater:
             print("\n✓ No issues found! All folders processed successfully.")
         
         print("\n" + "=" * 80)
+    
+    
     def process_directory_tree(self, root_path: Path, artist: str, genre: str):
         """Recursively process all folders in directory tree.
         
@@ -502,8 +518,7 @@ def main():
         
         # Process directory tree
         updater.process_directory_tree(directory_path, artist, genre)
-        
-        
+                
         # Display log summary
         updater.display_log_summary()
         
