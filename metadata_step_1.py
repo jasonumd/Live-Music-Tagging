@@ -302,7 +302,6 @@ class MetadataUpdater:
         
         date_str = f"{year}-{month:02d}-{day:02d}"
         parts = [p for p in [version, shnid, name] if p]
-        parts = [p for p in [version, shnid, name] if p]
         version_str = f"({' '.join(parts)})" if parts else ""
         return f"{date_str} {version_str} {location}"
     
@@ -381,64 +380,89 @@ class MetadataUpdater:
             artist: Artist name
         """
         folder_name = folder_path.name
-        print(f"\n{folder_name}")
+        print(f"\nProcessing folder: {folder_name}")
         
         # Extract date
         date_parts = self.extract_date(folder_name)
         if not date_parts:
-            print(here)
+            print(f"  ❌ No date found in folder name")
             self.log('date_not_found', folder_name)
             return
         
         year, month, day = date_parts
+        print(f"  ✓ Date found: {year}-{month:02d}-{day:02d}")
         
         # Determine recording version
         version = self.determine_version(folder_name)
         if not version:
+            print(f"  ⚠ No recording version found")
             self.log('no_recording_version_found', folder_name)
+        else:
+            print(f"  ✓ Version: {version}")
         
         # Extract SHNID
         shnid = self.extract_shnid(folder_name)
         if not shnid:
+            print(f"  ⚠ No SHNID found")
             self.log('no_shnid_found', folder_name)
+        else:
+            print(f"  ✓ SHNID: {shnid}")
         
         # Search for iconic names
         name = self.search_names(folder_name)
+        if name:
+            print(f"  ✓ Name: {name}")
         
         # Get event number
         event_no = self.get_event_number(artist, year, month, day)
         if event_no is None:
+            print(f"  ❌ Event not found in database")
             self.log('date_not_found', folder_name)
             return
         elif event_no == -1:
+            print(f"  ❌ Multiple shows found for this date")
             self.log('multiple_shows_same_date', folder_name)
             return
+        
+        print(f"  ✓ Event number: {event_no}")
         
         # Get show data
         show_data = self.get_show_data(artist, year, month, day, event_no)
         if not show_data:
+            print(f"  ❌ No show data found")
             self.log('date_not_found', folder_name)
             return
+        
+        print(f"  ✓ Found {len(show_data)} songs in database")
         
         # Get FLAC files
         flac_files = sorted(folder_path.glob("*.flac"))
         if not flac_files:
+            print(f"  ❌ No FLAC files found")
             self.log('no_flac_files_in_folder', folder_name)
             return
         
+        print(f"  ✓ Found {len(flac_files)} FLAC files")
+        
         # Check file count
         if len(show_data) != len(flac_files):
+            print(f"  ⚠ Song count mismatch: {len(show_data)} in DB vs {len(flac_files)} files")
             self.log('song_count_mismatch', folder_name)
         
         # Build album name
-        location = self.build_location_string(show_data[0][3:8])
+        location = self.build_location_string(show_data[0][4:9])
         album = self.build_album_name(year, month, day, version, shnid, name, location)
+        print(f"  ✓ Album: {album}")
         
         # Update metadata
+        print(f"  ✓ Updating metadata...")
         self.update_file_metadata(flac_files, artist, album, genre, year)
         
         # Create setlists
+        print(f"  ✓ Creating setlists...")
         self.create_setlists(folder_path, show_data, len(flac_files))
+        
+        print(f"  ✅ Complete!")
     
     
     def display_log_summary(self):
@@ -478,8 +502,13 @@ class MetadataUpdater:
         """
         print(f"Processing: {root_path}")
         
+        # Process the root path itself if it's a directory
+        if root_path.is_dir():
+            self.process_folder(root_path, artist, genre)
+        
+        # Then process all subdirectories
         for folder_path in root_path.rglob("*"):
-            if folder_path.is_dir():
+            if folder_path.is_dir() and folder_path != root_path:
                 self.process_folder(folder_path, artist, genre)
 
 
@@ -491,8 +520,10 @@ def main():
         print("  Artist Name:     Artist name to query (case sensitive, use quotes)")
         print("  Genre:           Genre to set in the song metadata")
         print("  Directory Path:  Top-level directory path (full path, use quotes)")
+        print("                   Accepts both Unix (/) and Windows (\\) path separators")
         print("\nExample:")
         print('  python metadata_step_1.py "Grateful Dead" "Rock" "/path/to/music"')
+        print('  python metadata_step_1.py "Grateful Dead" "Rock" "C:\\Music\\Grateful Dead"')
         sys.exit(1)
     
     artist = sys.argv[1]
