@@ -29,63 +29,63 @@ Additionally, this script will place 2 files in each show folder: set_setlist.tx
 ### **set_setlist.txt** ###
 This file is for informational purposes.
 
-1
-Ain't Life Grand >
-Pleas >
-Tall Boy >
-Little By Little
-Hatfield
-Steven's Cat
-Rebirtha >
-Ribs And Whiskey
-Saint Ex
-2
-Walkin' (For Your Love)
-Greta >
-I'm Not Alone
-Fishing >
-Travelin' Man >
-The Waker
-Surprise Valley >
-Drums >
-Surprise Valley
-Junior
-Genesis
-Bowlegged Woman >
-Love Tractor
-E
-Keep Me in Your Heart
-Red Hot Mama
+1\
+Ain't Life Grand >\
+Pleas >\
+Tall Boy >\
+Little By Little\
+Hatfield\
+Steven's Cat\
+Rebirtha >\
+Ribs And Whiskey\
+Saint Ex\
+2\
+Walkin' (For Your Love)\
+Greta >\
+I'm Not Alone\
+Fishing >\
+Travelin' Man >\
+The Waker\
+Surprise Valley >\
+Drums >\
+Surprise Valley\
+Junior\
+Genesis\
+Bowlegged Woman >\
+Love Tractor\
+E\
+Keep Me in Your Heart\
+Red Hot Mama\
 
 
 ### **setlist.txt** ###
 This file is created based on the database entries of the show. For audience recordings primarily, the digitizer adds "filler" tracks as they see fit. Prime example being crowd/tuning tracks. The goal of this file is to open it side-by-side with the taper/digitizer's text file which details aspects of the recording, including the track list. You can modify this file by adding/combining/removing entries to match the particular recording of the show. For convenience, the file starts with a "# <number>" which represents the number of flac files in the folder. This can help with a quick sanity check. Since the line starts with #, it will be ignored by metadata_step_2.py.
 
-# 24
-Ain't Life Grand >
-Pleas >
-Tall Boy >
-Little By Little
-Hatfield
-Steven's Cat
-Rebirtha >
-Ribs And Whiskey
-Saint Ex
-Walkin' (For Your Love)
-Greta >
-I'm Not Alone
-Fishing >
-Travelin' Man >
-The Waker
-Surprise Valley >
-Drums >
-Surprise Valley
-Junior
-Genesis
-Bowlegged Woman >
-Love Tractor
-Keep Me in Your Heart
-Red Hot Mama
+\# 24\
+Ain't Life Grand >\
+Pleas >\
+Tall Boy >\
+Little By Little\
+Hatfield\
+Steven's Cat\
+Rebirtha >\
+Ribs And Whiskey\
+Saint Ex\
+Walkin' (For Your Love)\
+Greta >\
+I'm Not Alone\
+Fishing >\
+Travelin' Man >\
+The Waker\
+Surprise Valley >\
+Drums >\
+Surprise Valley\
+Junior\
+Genesis\
+Bowlegged Woman >\
+Love Tractor\
+Keep Me in Your Heart\
+Red Hot Mama\
 
 ## **metadata_step_2.py**
 > python3 metadata_step_2.py "Recursive Folder Path"
