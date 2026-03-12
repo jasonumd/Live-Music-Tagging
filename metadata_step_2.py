@@ -75,13 +75,13 @@ class MetadataTitleUpdater:
             setlist_path: Path to setlist.txt file
             
         Returns:
-            List of song titles (non-empty lines)
+            List of song titles (non-empty lines, excluding comments)
         """
         with open(setlist_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
         
-        # Filter out empty lines and strip whitespace
-        return [line.strip() for line in lines if line.strip()]
+        # Filter out empty lines, comments (starting with #), and strip whitespace
+        return [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
     
     def display_error_summary(self):
         """Display summary of logged errors at the end of processing."""

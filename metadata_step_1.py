@@ -250,8 +250,10 @@ class MetadataUpdater:
         Returns:
             List of rows containing show data
         """
+        # [0] name | [1] genre | [2] Year | [3] Month | [4] Day | [5] venue1 | [6] venue2 | [7] venue3
+        # [8] venue4 | [9] venue5 | [10] set | [11] song | [12] segue
         sql = """
-            SELECT acts.name,
+            SELECT acts.name, acts.genre,
                    events.Year, events.Month, events.Day,
                    venues.venue1, venues.venue2, venues.venue3, venues.venue4, venues.venue5,
                    event_sets."set", songs.song, event_songs.segue
@@ -346,12 +348,12 @@ class MetadataUpdater:
         regular_lines = []
         
         # Add file count as first line in setlist.txt
-        regular_lines.append(str(flac_count))
+        regular_lines.append("# " + str(flac_count))
         
         for row in show_data:
-            set_number = row[9]
-            song_title = row[10]
-            is_segue = row[11] == 1
+            set_number = row[10]
+            song_title = row[11]
+            is_segue = row[12] == 1
             
             # Add segue indicator
             if is_segue:
@@ -372,7 +374,7 @@ class MetadataUpdater:
         with open(setlist_path, 'w') as regular_file:
             regular_file.write('\n'.join(regular_lines))
     
-    def process_folder(self, folder_path: Path, artist: str, genre: str):
+    def process_folder(self, folder_path: Path, artist: str):
         """Process a single folder and update metadata.
         
         Args:
@@ -449,8 +451,11 @@ class MetadataUpdater:
             print(f"  ⚠ Song count mismatch: {len(show_data)} in DB vs {len(flac_files)} files")
             self.log('song_count_mismatch', folder_name)
         
+        # Genre
+        genre = show_data[0][1]
+        
         # Build album name
-        location = self.build_location_string(show_data[0][4:9])
+        location = self.build_location_string(show_data[0][5:10])
         album = self.build_album_name(year, month, day, version, shnid, name, location)
         print(f"  ✓ Album: {album}")
         
@@ -493,7 +498,7 @@ class MetadataUpdater:
         print("\n" + "=" * 80)
     
     
-    def process_directory_tree(self, root_path: Path, artist: str, genre: str):
+    def process_directory_tree(self, root_path: Path, artist: str):
         """Recursively process all folders in directory tree.
         
         Args:
@@ -504,21 +509,20 @@ class MetadataUpdater:
         
         # Process the root path itself if it's a directory
         if root_path.is_dir():
-            self.process_folder(root_path, artist, genre)
+            self.process_folder(root_path, artist)
         
         # Then process all subdirectories
         for folder_path in root_path.rglob("*"):
             if folder_path.is_dir() and folder_path != root_path:
-                self.process_folder(folder_path, artist, genre)
+                self.process_folder(folder_path, artist)
 
 
 def main():
     """Main entry point for the script."""
-    if len(sys.argv) != 4:
-        print("Usage: python metadata_step_1.py <Artist Name> <Genre> <Directory Path>")
+    if len(sys.argv) != 3:
+        print("Usage: python metadata_step_1.py <Artist Name> <Directory Path>")
         print("\nArguments:")
         print("  Artist Name:     Artist name to query (case sensitive, use quotes)")
-        print("  Genre:           Genre to set in the song metadata")
         print("  Directory Path:  Top-level directory path (full path, use quotes)")
         print("                   Accepts both Unix (/) and Windows (\\) path separators")
         print("\nExample:")
@@ -527,8 +531,7 @@ def main():
         sys.exit(1)
     
     artist = sys.argv[1]
-    genre = sys.argv[2]
-    directory_path = Path(sys.argv[3])
+    directory_path = Path(sys.argv[2])
     
     # Validate directory
     if not directory_path.exists():
@@ -548,7 +551,7 @@ def main():
             sys.exit(1)
         
         # Process directory tree
-        updater.process_directory_tree(directory_path, artist, genre)
+        updater.process_directory_tree(directory_path, artist)
                 
         # Display log summary
         updater.display_log_summary()
