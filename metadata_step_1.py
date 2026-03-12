@@ -44,6 +44,7 @@ class MetadataUpdater:
         self.db_path = database_path
         self.connection = None
         self.cursor = None
+        self.skip_version = False  # Will be set from command line argument
         self.setup_logging()
     
     def setup_logging(self):
@@ -168,7 +169,20 @@ class MetadataUpdater:
         elif "pa" in folder_lower and "panic" not in folder_lower:
             return "pa"
         elif "5-1" in folder_lower:
-            return "5.1"
+            # Check all occurrences of "5-1" to find one that's not part of a date
+            start = 0
+            found_surround = False
+            while True:
+                idx = folder_lower.find("5-1", start)
+                if idx == -1:
+                    break
+                # If "5-1" is not preceded by a digit, it's likely the surround indicator
+                if idx == 0 or not folder_lower[idx-1].isdigit():
+                    found_surround = True
+                    break
+                start = idx + 1
+            if found_surround:
+                return "5.1"
         elif "dts" in folder_lower:
             return "dts"
         
@@ -395,12 +409,16 @@ class MetadataUpdater:
         print(f"  ✓ Date found: {year}-{month:02d}-{day:02d}")
         
         # Determine recording version
-        version = self.determine_version(folder_name)
-        if not version:
-            print(f"  ⚠ No recording version found")
-            self.log('no_recording_version_found', folder_name)
+        if self.skip_version:
+            version = ""
+            print(f"  ⚠ Version detection skipped (skip_version=1)")
         else:
-            print(f"  ✓ Version: {version}")
+            version = self.determine_version(folder_name)
+            if not version:
+                print(f"  ⚠ No recording version found")
+                self.log('no_recording_version_found', folder_name)
+            else:
+                print(f"  ✓ Version: {version}")
         
         # Extract SHNID
         shnid = self.extract_shnid(folder_name)
@@ -519,19 +537,22 @@ class MetadataUpdater:
 
 def main():
     """Main entry point for the script."""
-    if len(sys.argv) != 3:
-        print("Usage: python metadata_step_1.py <Artist Name> <Directory Path>")
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: python metadata_step_1.py <Artist Name> <Directory Path> [skip_version]")
         print("\nArguments:")
         print("  Artist Name:     Artist name to query (case sensitive, use quotes)")
         print("  Directory Path:  Top-level directory path (full path, use quotes)")
         print("                   Accepts both Unix (/) and Windows (\\) path separators")
+        print("  skip_version:    Optional - Set to 1 to skip recording version detection (default: 0)")
         print("\nExample:")
-        print('  python metadata_step_1.py "Grateful Dead" "Rock" "/path/to/music"')
-        print('  python metadata_step_1.py "Grateful Dead" "Rock" "C:\\Music\\Grateful Dead"')
+        print('  python metadata_step_1.py "Grateful Dead" "/path/to/music"')
+        print('  python metadata_step_1.py "Grateful Dead" "C:\\Music\\Grateful Dead"')
+        print('  python metadata_step_1.py "Grateful Dead" "/path/to/music" 1')
         sys.exit(1)
     
     artist = sys.argv[1]
     directory_path = Path(sys.argv[2])
+    skip_version = int(sys.argv[3]) if len(sys.argv) == 4 else 0
     
     # Validate directory
     if not directory_path.exists():
@@ -540,6 +561,7 @@ def main():
     
     # Initialize updater
     updater = MetadataUpdater("show_data.db")
+    updater.skip_version = (skip_version == 1)
     
     try:
         # Connect to database
@@ -549,6 +571,9 @@ def main():
         if not updater.validate_artist(artist):
             print(f"Error: Artist '{artist}' not found in database.")
             sys.exit(1)
+        
+        print(f"Artist: {artist}")
+        print(f"Skip Version Detection: {'Yes' if updater.skip_version else 'No'}")
         
         # Process directory tree
         updater.process_directory_tree(directory_path, artist)

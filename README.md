@@ -7,6 +7,12 @@ SQLite database used to store live show data. Database is currently populated wi
 ## **metadata_step_1.py**
 > python3 metadata_step_1.py "Artist" "Recursive Folder Path"
 
+or
+
+> python3 metadata_step_1.py "Artist" "Recursive Folder Path" 1
+
+Where the ending 1 indicates to skip searching for recording type.
+
 Current supported artists:
 1. Grateful Dead
 2. Jerry Garcia (based on show date, looks up actual Jerry Garcia project)
