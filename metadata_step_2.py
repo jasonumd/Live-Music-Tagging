@@ -92,14 +92,14 @@ class MetadataTitleUpdater:
         total_errors = sum(self.error_counts.values())
         
         if total_errors == 0:
-            print("\n✓ No errors! All folders processed successfully.\n")
+            print("\n[OK] No errors! All folders processed successfully.\n")
             return
         
         print(f"\nTotal folders with issues: {total_errors}\n")
         
         # Display count mismatch errors
         if self.error_counts['count_mismatch'] > 0:
-            print(f"📊 Count Mismatches: {self.error_counts['count_mismatch']}")
+            print(f"[DATA] Count Mismatches: {self.error_counts['count_mismatch']}")
             print("-" * 70)
             log_file = self.logs['count_mismatch']
             if log_file.exists():
@@ -110,7 +110,7 @@ class MetadataTitleUpdater:
         
         # Display missing setlist errors
         if self.error_counts['setlist_not_exist'] > 0:
-            print(f"📝 Missing setlist.txt: {self.error_counts['setlist_not_exist']}")
+            print(f"[NOTE] Missing setlist.txt: {self.error_counts['setlist_not_exist']}")
             print("-" * 70)
             log_file = self.logs['setlist_not_exist']
             if log_file.exists():
@@ -134,9 +134,9 @@ class MetadataTitleUpdater:
                 audio = music_tag.load_file(file_path)
                 audio["title"] = title
                 audio.save()
-                print(f"  ✓ {file_path.name}: {title}")
+                print(f"  [OK] {file_path.name}: {title}")
             except Exception as e:
-                print(f"  ✗ Error updating {file_path.name}: {e}")
+                print(f"  [ERROR] Error updating {file_path.name}: {e}")
     
     def process_folder(self, folder_path: Path):
         """Process a single folder and update FLAC titles from setlist.
@@ -151,27 +151,27 @@ class MetadataTitleUpdater:
         setlist_path = folder_path / self.SETLIST_FILENAME
         if not setlist_path.exists():
             self.log('setlist_not_exist', folder_name)
-            print(f"  ⚠ No setlist.txt found")
+            print(f"  [WARN] No setlist.txt found")
             return
         
         # Get all FLAC files
         flac_files = sorted(folder_path.glob("*.flac"))
         if not flac_files:
-            print(f"  ⚠ No FLAC files found")
+            print(f"  [WARN] No FLAC files found")
             return
         
         # Read setlist
         try:
             setlist = self.read_setlist(setlist_path)
         except Exception as e:
-            print(f"  ✗ Error reading setlist: {e}")
+            print(f"  [ERROR] Error reading setlist: {e}")
             return
         
         # Check counts match
         if len(flac_files) != len(setlist):
             self.log('count_mismatch', 
                     f"{folder_name} (FLAC: {len(flac_files)}, Setlist: {len(setlist)})")
-            print(f"  ⚠ Count mismatch: {len(flac_files)} FLAC files, {len(setlist)} setlist entries")
+            print(f"  [WARN] Count mismatch: {len(flac_files)} FLAC files, {len(setlist)} setlist entries")
             return
         
         # Update titles
@@ -189,7 +189,7 @@ class MetadataTitleUpdater:
             if folder_path.is_dir():
                 self.process_folder(folder_path)
         
-        print("\n✓ Processing complete!")
+        print("\n[OK] Processing complete!")
         
         # Display error summary
         self.display_error_summary()
