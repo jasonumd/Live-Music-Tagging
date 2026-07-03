@@ -27,12 +27,12 @@ class MetadataUpdater:
     MICROPHONE_TYPES = [
         "nak", "sony", "schoeps", "mk41", "mk4", "km84i", "km184", "km140",
         "ccm", "cmc", "akg", "senn", "mg", "m210", "m201", "at4053", "re20",
-        "cemc", "ck41", "bk4011", "rsm191", "beyer", "m88"
+        "cemc", "ck41", "bk4011", "rsm191", "beyer", "m88", "4ch", "mstc64"
     ]
     
     # Iconic names (add more if you desire)
     ICONIC_NAMES = [
-        "Miller"
+        "Miller", "ZMan"
     ]
     
     def __init__(self, database_path: str):
@@ -152,7 +152,8 @@ class MetadataUpdater:
             return "mtx"
         elif "sbd" in folder_lower:
             return "sbd"
-        elif "aud" in folder_lower:
+        elif re.search(r'\baud\b', folder_lower):
+            # Use word boundary to avoid matching "aud" inside words like "Auditorium"
             return "aud"
         elif any(mic in folder_lower for mic in self.MICROPHONE_TYPES):
             return "aud"
@@ -166,7 +167,10 @@ class MetadataUpdater:
             return "studio"
         elif "gmb" in folder_lower:
             return "gmb"
-        elif "pa" in folder_lower and "panic" not in folder_lower:
+        elif re.search(r'(?<!,\s)\bpa\b', folder_lower):
+            # Use word boundary and negative lookbehind to avoid matching:
+            # - "pa" inside words like "Pavilion", "Palace"
+            # - ", PA" which is the Pennsylvania state abbreviation
             return "pa"
         elif "5-1" in folder_lower:
             # Check all occurrences of "5-1" to find one that's not part of a date
@@ -318,8 +322,8 @@ class MetadataUpdater:
         
         date_str = f"{year}-{month:02d}-{day:02d}"
         parts = [p for p in [version, shnid, name] if p]
-        version_str = f"({' '.join(parts)})" if parts else ""
-        return f"{date_str} {version_str} {location}"
+        version_str = f" ({' '.join(parts)})" if parts else ""
+        return f"{date_str}{version_str} {location}"
     
     def update_file_metadata(self, files: list, artist: str, album: str, genre: str, year: int):
         """Update metadata for all FLAC files.
@@ -361,9 +365,6 @@ class MetadataUpdater:
         set_lines = []
         regular_lines = []
         
-        # Add file count as first line in setlist.txt
-        regular_lines.append("# " + str(flac_count))
-        
         for row in show_data:
             set_number = row[10]
             song_title = row[11]
@@ -380,6 +381,9 @@ class MetadataUpdater:
             
             set_lines.append(song_title)
             regular_lines.append(song_title)
+        
+        # Add file count as last line in setlist.txt
+        regular_lines.append("# " + str(flac_count))
         
         # Write files without trailing newline
         with open(set_setlist_path, 'w') as set_file:
@@ -401,72 +405,72 @@ class MetadataUpdater:
         # Extract date
         date_parts = self.extract_date(folder_name)
         if not date_parts:
-            print(f"  ❌ No date found in folder name")
+            print(f"  [ERROR] No date found in folder name")
             self.log('date_not_found', folder_name)
             return
         
         year, month, day = date_parts
-        print(f"  ✓ Date found: {year}-{month:02d}-{day:02d}")
+        print(f"  [OK] Date found: {year}-{month:02d}-{day:02d}")
         
         # Determine recording version
         if self.skip_version:
             version = ""
-            print(f"  ⚠ Version detection skipped (skip_version=1)")
+            print(f"  [WARN] Version detection skipped (skip_version=1)")
         else:
             version = self.determine_version(folder_name)
             if not version:
-                print(f"  ⚠ No recording version found")
+                print(f"  [WARN] No recording version found")
                 self.log('no_recording_version_found', folder_name)
             else:
-                print(f"  ✓ Version: {version}")
+                print(f"  [OK] Version: {version}")
         
         # Extract SHNID
         shnid = self.extract_shnid(folder_name)
         if not shnid:
-            print(f"  ⚠ No SHNID found")
+            print(f"  [WARN] No SHNID found")
             self.log('no_shnid_found', folder_name)
         else:
-            print(f"  ✓ SHNID: {shnid}")
+            print(f"  [OK] SHNID: {shnid}")
         
         # Search for iconic names
         name = self.search_names(folder_name)
         if name:
-            print(f"  ✓ Name: {name}")
+            print(f"  [OK] Name: {name}")
         
         # Get event number
         event_no = self.get_event_number(artist, year, month, day)
         if event_no is None:
-            print(f"  ❌ Event not found in database")
+            print(f"  [ERROR] Event not found in database")
             self.log('date_not_found', folder_name)
             return
         elif event_no == -1:
-            print(f"  ❌ Multiple shows found for this date")
+            print(f"  [ERROR] Multiple shows found for this date")
             self.log('multiple_shows_same_date', folder_name)
             return
         
-        print(f"  ✓ Event number: {event_no}")
+        print(f"  [OK] Event number: {event_no}")
         
         # Get show data
         show_data = self.get_show_data(artist, year, month, day, event_no)
         if not show_data:
-            print(f"  ❌ No show data found")
+            print(f"  [ERROR] No show data found")
             self.log('date_not_found', folder_name)
             return
         
-        print(f"  ✓ Found {len(show_data)} songs in database")
+        print(f"  [OK] Found {len(show_data)} songs in database")
         
         # Get FLAC files
-        flac_files = sorted(folder_path.glob("*.flac"))
+        flac_files = sorted(list(folder_path.glob("*.flac")) + list(folder_path.glob("*.m4a"))) #flac_files = sorted(folder_path.glob("*.flac"))
         if not flac_files:
-            print(f"  ❌ No FLAC files found")
+            print(f"  [ERROR] No FLAC files found")
             self.log('no_flac_files_in_folder', folder_name)
             return
         
-        print(f"  ✓ Found {len(flac_files)} FLAC files")
+        print(f"  [OK] Found {len(flac_files)} FLAC files")
         
         # Check file count
         if len(show_data) != len(flac_files):
-            print(f"  ⚠ Song count mismatch: {len(show_data)} in DB vs {len(flac_files)} files")
+            print(f"  [WARN] Song count mismatch: {len(show_data)} in DB vs {len(flac_files)} files")
             self.log('song_count_mismatch', folder_name)
         
         # Genre
@@ -475,14 +479,14 @@ class MetadataUpdater:
         # Build album name
         location = self.build_location_string(show_data[0][5:10])
         album = self.build_album_name(year, month, day, version, shnid, name, location)
-        print(f"  ✓ Album: {album}")
+        print(f"  [OK] Album: {album}")
         
         # Update metadata
-        print(f"  ✓ Updating metadata...")
+        print(f"  [OK] Updating metadata...")
         self.update_file_metadata(flac_files, artist, album, genre, year)
         
         # Create setlists
-        print(f"  ✓ Creating setlists...")
+        print(f"  [OK] Creating setlists...")
         self.create_setlists(folder_path, show_data, len(flac_files))
         
         print(f"  ✅ Complete!")
@@ -511,7 +515,7 @@ class MetadataUpdater:
                         print(f"  • {entry.strip()}")
         
         if not has_entries:
-            print("\n✓ No issues found! All folders processed successfully.")
+            print("\n[OK] No issues found! All folders processed successfully.")
         
         print("\n" + "=" * 80)
     
