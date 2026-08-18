@@ -167,6 +167,8 @@ class MetadataUpdater:
             return "studio"
         elif "gmb" in folder_lower:
             return "gmb"
+        elif "nugs" in folder_lower:
+            return "nugs"
         elif re.search(r'(?<!,\s)\bpa\b', folder_lower):
             # Use word boundary and negative lookbehind to avoid matching:
             # - "pa" inside words like "Pavilion", "Palace"
